@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laberintos con Grafos - BFS y DFS</title>
+
+<style>
+
+    body{
+        font-family: Arial, Helvetica, sans-serif;
+        background: #1e1e1e;
+        color: white;
+        text-align: center;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1{
+        margin-bottom: 10px;
+    }
+
+    p{
+        max-width: 900px;
+        margin: auto;
+        margin-bottom: 20px;
+    }
+
+    #controls{
+        margin-bottom: 20px;
+    }
+
+    button{
+        padding: 10px 20px;
+        margin: 5px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: 0.2s;
+    }
+
+    button:hover{
+        transform: scale(1.05);
+    }
+
+    #maze{
+        margin: auto;
+        display: grid;
+        width: fit-content;
+        border: 3px solid white;
+    }
+
+    .cell{
+        width: 25px;
+        height: 25px;
+        border: 1px solid #333;
+    }
+
+    .wall{
+        background: black;
+    }
+
+    .path{
+        background: white;
+    }
+
+    .start{
+        background: limegreen;
+    }
+
+    .end{
+        background: red;
+    }
+
+    .visited-bfs{
+        background: dodgerblue;
+    }
+
+    .visited-dfs{
+        background: orange;
+    }
+
+    .solution{
+        background: yellow;
+    }
+
+    #info{
+        margin-top: 20px;
+        font-size: 18px;
+    }
+
+</style>
+</head>
+<body>
+
+<h1>Generador y Resolutor de Laberintos</h1>
+
+<p>
+Cada celda del laberinto representa un nodo de un grafo.
+Las conexiones entre celdas accesibles representan aristas.
+BFS encuentra el camino más corto y DFS explora profundamente primero.
+</p>
+
+<div id="controls">
+    <button onclick="generateMaze()">Generar Laberinto</button>
+    <button onclick="solveBFS()">Resolver BFS</button>
+    <button onclick="solveDFS()">Resolver DFS</button>
+</div>
+
+<div id="maze"></div>
+
+<div id="info">
+    Esperando acción...
+</div>
+
+<script>
+
+const rows = 20;
+const cols = 20;
+
+let maze = [];
+
+const mazeDiv = document.getElementById("maze");
+const info = document.getElementById("info");
+
+const start = {x:0, y:0};
+const end = {x:cols-1, y:rows-1};
+
+function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function generateMaze(){
+
+    maze = [];
+
+    for(let y=0; y<rows; y++){
+
+        let row = [];
+
+        for(let x=0; x<cols; x++){
+
+            if(Math.random() < 0.3){
+                row.push(0);
+            }else{
+                row.push(1);
+            }
+
+        }
+
+        maze.push(row);
+    }
+
+    maze[start.y][start.x] = 1;
+    maze[end.y][end.x] = 1;
+
+    drawMaze();
+
+    info.innerHTML = "Laberinto generado.";
+}
+
+function drawMaze(){
+
+    mazeDiv.innerHTML = "";
+
+    mazeDiv.style.gridTemplateColumns = `repeat(${cols}, 25px)`;
+
+    for(let y=0; y<rows; y++){
+
+        for(let x=0; x<cols; x++){
+
+            const cell = document.createElement("div");
+
+            cell.id = `cell-${x}-${y}`;
+
+            cell.classList.add("cell");
+
+            if(maze[y][x] === 0){
+                cell.classList.add("wall");
+            }else{
+                cell.classList.add("path");
+            }
+
+            if(x === start.x && y === start.y){
+                cell.classList.add("start");
+            }
+
+            if(x === end.x && y === end.y){
+                cell.classList.add("end");
+            }
+
+            mazeDiv.appendChild(cell);
+
+        }
+
+    }
+
+}
+
+function getNeighbors(x,y){
+
+    const neighbors = [];
+
+    const directions = [
+        [1,0],
+        [-1,0],
+        [0,1],
+        [0,-1]
+    ];
+
+    for(const [dx,dy] of directions){
+
+        const nx = x + dx;
+        const ny = y + dy;
+
+        if(
+            nx >= 0 &&
+            ny >= 0 &&
+            nx < cols &&
+            ny < rows &&
+            maze[ny][nx] === 1
+        ){
+            neighbors.push({x:nx, y:ny});
+        }
+
+    }
+
+    return neighbors;
+}
+
+async function solveBFS(){
+
+    clearVisited();
+
+    info.innerHTML = "Resolviendo con BFS...";
+
+    let queue = [];
+    let visited = [];
+    let parent = {};
+
+    for(let y=0; y<rows; y++){
+        visited[y] = [];
+    }
+
+    queue.push(start);
+    visited[start.y][start.x] = true;
+
+    while(queue.length > 0){
+
+        const current = queue.shift();
+
+        if(
+            !(current.x === start.x && current.y === start.y) &&
+            !(current.x === end.x && current.y === end.y)
+        ){
+
+            document
+            .getElementById(`cell-${current.x}-${current.y}`)
+            .classList.add("visited-bfs");
+
+            await sleep(30);
+        }
+
+        if(current.x === end.x && current.y === end.y){
+
+            await showPath(parent);
+
+            info.innerHTML = "BFS encontró el camino más corto.";
+
+            return;
+        }
+
+        const neighbors = getNeighbors(current.x,current.y);
+
+        for(const neighbor of neighbors){
+
+            if(!visited[neighbor.y][neighbor.x]){
+
+                visited[neighbor.y][neighbor.x] = true;
+
+                parent[`${neighbor.x},${neighbor.y}`] = current;
+
+                queue.push(neighbor);
+
+            }
+
+        }
+
+    }
+
+    info.innerHTML = "No existe camino.";
+}
+
+async function solveDFS(){
+
+    clearVisited();
+
+    info.innerHTML = "Resolviendo con DFS...";
+
+    let stack = [];
+    let visited = [];
+    let parent = {};
+
+    for(let y=0; y<rows; y++){
+        visited[y] = [];
+    }
+
+    stack.push(start);
+
+    while(stack.length > 0){
+
+        const current = stack.pop();
+
+        if(visited[current.y][current.x]) continue;
+
+        visited[current.y][current.x] = true;
+
+        if(
+            !(current.x === start.x && current.y === start.y) &&
+            !(current.x === end.x && current.y === end.y)
+        ){
+
+            document
+            .getElementById(`cell-${current.x}-${current.y}`)
+            .classList.add("visited-dfs");
+
+            await sleep(30);
+        }
+
+        if(current.x === end.x && current.y === end.y){
+
+            await showPath(parent);
+
+            info.innerHTML = "DFS encontró un camino.";
+
+            return;
+        }
+
+        const neighbors = getNeighbors(current.x,current.y);
+
+        for(const neighbor of neighbors){
+
+            if(!visited[neighbor.y][neighbor.x]){
+
+                parent[`${neighbor.x},${neighbor.y}`] = current;
+
+                stack.push(neighbor);
+
+            }
+
+        }
+
+    }
+
+    info.innerHTML = "No existe camino.";
+}
+
+async function showPath(parent){
+
+    let current = end;
+
+    while(!(current.x === start.x && current.y === start.y)){
+
+        const key = `${current.x},${current.y}`;
+
+        current = parent[key];
+
+        if(!current) return;
+
+        if(
+            !(current.x === start.x && current.y === start.y)
+        ){
+
+            document
+            .getElementById(`cell-${current.x}-${current.y}`)
+            .classList.add("solution");
+
+            await sleep(40);
+
+        }
+
+    }
+
+}
+
+function clearVisited(){
+
+    const cells = document.querySelectorAll(".cell");
+
+    cells.forEach(cell => {
+
+        cell.classList.remove("visited-bfs");
+        cell.classList.remove("visited-dfs");
+        cell.classList.remove("solution");
+
+    });
+
+}
+
+generateMaze();
+
+</script>
+
+</body>
+</html>
